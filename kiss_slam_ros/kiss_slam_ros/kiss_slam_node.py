@@ -21,8 +21,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 import os
-import signal
-import sys
 
 import numpy as np
 import rclpy
@@ -71,10 +69,6 @@ class KissSLAMNode(Node):
         self.runtimes = []
         self.timestamps = []
 
-        # Register signal handlers for SIGTERM and SIGINT
-        signal.signal(signal.SIGTERM, self._signal_handler)
-        signal.signal(signal.SIGINT, self._signal_handler)
-
     def cloud_cb(self, in_msg: PointCloud2):
         time_start = time.time()
 
@@ -87,13 +81,12 @@ class KissSLAMNode(Node):
 
         self.runtimes.append(time.time() - time_start)
 
-    def _signal_handler(self, sig, frame):
-        """Handle SIGTERM gracefully by triggering done callback"""
-        self.get_logger().info("SIGTERM received, finalizing SLAM...")
-        self.done_cb()
-        sys.exit(0)
-
     def done_cb(self):
+        # Check if any scans were processed
+        if len(self.timestamps) == 0:
+            print("[kiss_slam_node] No scans processed, skipping finalization")
+            return
+
         # Finalize SLAM like in pipeline
         self.slam.generate_new_node()
         self.slam.local_map_graph.erase_last_local_map()
@@ -166,10 +159,13 @@ def main(args=None):
 
     kiss = KissSLAMNode()
 
-    rclpy.spin(kiss)
-
-    kiss.destroy_node()
-    rclpy.shutdown()
+    try:
+        rclpy.spin(kiss)
+    except KeyboardInterrupt:
+        kiss.done_cb()
+    finally:
+        kiss.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == "__main__":
