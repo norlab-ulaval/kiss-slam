@@ -21,6 +21,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 import os
+import signal
+import sys
 
 import numpy as np
 import rclpy
@@ -60,7 +62,6 @@ class KissSLAMNode(Node):
 
         # Subscribers
         self.cloud_sub = self.create_subscription(PointCloud2, self.points_topic, self.cloud_cb, 10)
-        self.done_sub = self.create_subscription(Empty, "done", self.done_cb, 10)
 
         # Publishers
         self.tf_broadcaster = TransformBroadcaster(self)
@@ -69,6 +70,9 @@ class KissSLAMNode(Node):
         self.slam = KissSLAM(self.kiss_slam_config)
         self.runtimes = []
         self.timestamps = []
+
+        # Register signal handler for SIGTERM
+        signal.signal(signal.SIGTERM, self._signal_handler)
 
     def cloud_cb(self, in_msg: PointCloud2):
         time_start = time.time()
@@ -82,7 +86,13 @@ class KissSLAMNode(Node):
 
         self.runtimes.append(time.time() - time_start)
 
-    def done_cb(self, _: Empty):
+    def _signal_handler(self, sig, frame):
+        """Handle SIGTERM gracefully by triggering done callback"""
+        self.get_logger().info("SIGTERM received, finalizing SLAM...")
+        self.done_cb()
+        sys.exit(0)
+
+    def done_cb(self):
         # Finalize SLAM like in pipeline
         self.slam.generate_new_node()
         self.slam.local_map_graph.erase_last_local_map()
