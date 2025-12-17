@@ -71,8 +71,9 @@ class KissSLAMNode(Node):
         self.runtimes = []
         self.timestamps = []
 
-        # Register signal handler for SIGTERM
+        # Register signal handlers for SIGTERM and SIGINT
         signal.signal(signal.SIGTERM, self._signal_handler)
+        signal.signal(signal.SIGINT, self._signal_handler)
 
     def cloud_cb(self, in_msg: PointCloud2):
         time_start = time.time()
