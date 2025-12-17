@@ -84,7 +84,7 @@ class KissSLAMNode(Node):
     def done_cb(self):
         # Check if any scans were processed
         if len(self.timestamps) == 0:
-            print("[kiss_slam_node] No scans processed, skipping finalization")
+            self.get_logger().info("No scans processed, skipping finalization")
             return
 
         # Finalize SLAM like in pipeline
@@ -165,7 +165,8 @@ def main(args=None):
         kiss.done_cb()
     finally:
         kiss.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == "__main__":
