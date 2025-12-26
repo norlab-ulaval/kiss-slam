@@ -54,11 +54,15 @@ class KissSLAMNode(Node):
         self.points_topic = self.get_parameter("points_topic").value
         self.map_frame = self.get_parameter("map_frame").value
         self.final_map_file_name = self.get_parameter("final_map_file_name").value
-        self.final_trajectory_file_name = self.get_parameter("final_trajectory_file_name").value
+        self.final_trajectory_file_name = self.get_parameter(
+            "final_trajectory_file_name"
+        ).value
         self.final_logs_file_name = self.get_parameter("final_logs_file_name").value
 
         # Subscribers
-        self.cloud_sub = self.create_subscription(PointCloud2, self.points_topic, self.cloud_cb, 10)
+        self.cloud_sub = self.create_subscription(
+            PointCloud2, self.points_topic, self.cloud_cb, 10
+        )
 
         # Publishers
         self.tf_broadcaster = TransformBroadcaster(self)
@@ -105,6 +109,7 @@ class KissSLAMNode(Node):
         self.pose_publisher.publish(pose_msg)
 
     def done_cb(self):
+        self.get_logger().info("Received destructor call")
         # Check if any scans were processed
         if len(self.timestamps) == 0:
             self.get_logger().info("No scans processed, skipping finalization")
