@@ -21,23 +21,22 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 import os
+import time
 
 import numpy as np
 import rclpy
-from kiss_slam_ros.conversions import (
-    pc2_to_numpy,
-)
-
-from pyquaternion import Quaternion
-
+from geometry_msgs.msg import PoseStamped
 from kiss_slam.config import load_config
+from kiss_slam.slam import KissSLAM
+from pyquaternion import Quaternion
 from rclpy.node import Node
 from sensor_msgs.msg import PointCloud2
 from std_msgs.msg import Empty
 from tf2_ros import TransformBroadcaster
 
-from kiss_slam.slam import KissSLAM
-import time
+from kiss_slam_ros.conversions import (
+    pc2_to_numpy,
+)
 
 
 class KissSLAMNode(Node):
@@ -63,6 +62,7 @@ class KissSLAMNode(Node):
 
         # Publishers
         self.tf_broadcaster = TransformBroadcaster(self)
+        self.pose_publisher = self.create_publisher(PoseStamped, "/estimated_pose", 10)
 
         self.kiss_slam_config = load_config(None)
         self.slam = KissSLAM(self.kiss_slam_config)
@@ -80,6 +80,29 @@ class KissSLAMNode(Node):
         self.slam.process_scan(pcd, np.empty((0,)))
 
         self.runtimes.append(time.time() - time_start)
+
+        self.get_logger().debug(
+            f"Process point cloud in: {self.runtimes[-1]:.4f} seconds"
+        )
+        self.publish_pose(self.slam.odometry.last_pose)
+
+    def publish_pose(self, pose_matrix):
+        # Extract translation
+        tx, ty, tz = pose_matrix[:3, -1].flatten()
+
+        # Extract rotation and convert to quaternion (w, x, y, z) order
+        qw, qx, qy, qz = self.matrix_to_quaternion(pose_matrix)
+        pose_msg = PoseStamped()
+        pose_msg.header.stamp = self.get_clock().now().to_msg()
+        pose_msg.header.frame_id = "map"
+        pose_msg.pose.position.x = tx
+        pose_msg.pose.position.y = ty
+        pose_msg.pose.position.z = tz
+        pose_msg.pose.orientation.x = qx
+        pose_msg.pose.orientation.y = qy
+        pose_msg.pose.orientation.z = qz
+        pose_msg.pose.orientation.w = qw
+        self.pose_publisher.publish(pose_msg)
 
     def done_cb(self):
         # Check if any scans were processed
@@ -126,6 +149,10 @@ class KissSLAMNode(Node):
             comments="",
         )
 
+    def matrix_to_quaternion(self, matrix):
+        qw, qx, qy, qz = Quaternion(matrix=matrix, atol=0.01).elements
+        return qw, qx, qy, qz
+
     def save_trajectory(self):
         # Export results
         with open(self.final_trajectory_file_name, "w") as f:
@@ -134,7 +161,7 @@ class KissSLAMNode(Node):
                 tx, ty, tz = pose_matrix[:3, -1].flatten()
 
                 # Extract rotation and convert to quaternion (w, x, y, z) order
-                qw, qx, qy, qz = Quaternion(matrix=pose_matrix, atol=0.01).elements
+                qw, qx, qy, qz = self.matrix_to_quaternion(pose_matrix)
 
                 # Use actual timestamp from message
                 timestamp = self.timestamps[i]
