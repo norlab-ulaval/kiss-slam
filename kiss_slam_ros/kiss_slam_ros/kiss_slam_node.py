@@ -66,7 +66,7 @@ class KissSLAMNode(Node):
 
         # Publishers
         self.tf_broadcaster = TransformBroadcaster(self)
-        self.pose_publisher = self.create_publisher(PoseStamped, "/estimated_pose", 10)
+        self.pose_publisher = self.create_publisher(PoseStamped, "estimated_pose", 10)
 
         self.kiss_slam_config = load_config(None)
         self.slam = KissSLAM(self.kiss_slam_config)
