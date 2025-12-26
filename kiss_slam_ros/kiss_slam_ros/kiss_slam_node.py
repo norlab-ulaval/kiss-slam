@@ -145,6 +145,19 @@ class KissSLAMNode(Node):
                 )
 
     def save_logs(self):
+        self.get_logger().debug("=====Statistics=====")
+        self.get_logger().debug(
+            f"Total processing time: {sum(self.runtimes):.4f} seconds"
+        )
+        self.get_logger().debug(f"Number of scans processed: {len(self.runtimes)}")
+        self.get_logger().debug(
+            f"Average runtime: {sum(self.runtimes) / len(self.runtimes):.4f} seconds"
+        )
+        self.get_logger().debug(
+            f"Average frequency: {len(self.runtimes) / sum(self.runtimes):.4f} Hz"
+        )
+        self.get_logger().debug(f"Number of closures found: {len(self.slam.closures)}")
+
         with open(self.final_logs_file_name, "w") as f:
             total_time = sum(self.runtimes)
             f.write(f"Total processing time: {total_time:.4f} seconds\n")
