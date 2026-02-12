@@ -82,13 +82,17 @@ class KissSLAMNode(Node):
 
         pcd = pc2_to_numpy(in_msg)
         self.slam.process_scan(pcd, np.empty((0,)))
+        
+        # We need to broadcast the global pose, not the local one
+        last_keypose = self.slam.local_map_graph.last_keypose
+        global_pose = last_keypose @ self.slam.odometry.last_pose
 
         self.runtimes.append(time.time() - time_start)
 
         self.get_logger().debug(
             f"Process point cloud in: {self.runtimes[-1]:.4f} seconds"
         )
-        self.publish_pose(self.slam.odometry.last_pose)
+        self.publish_pose(global_pose)
 
     def publish_pose(self, pose_matrix):
         # Extract translation
